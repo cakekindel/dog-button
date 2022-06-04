@@ -1,9 +1,2 @@
-[package]
-name = "dog-button"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-rodio = {default-features=false, version = "0.15", features = ["symphonia-all"]}
+[workspace]
+members = ["server", "client"]
