@@ -1,9 +1,10 @@
 use gpio::{GpioIn, GpioValue};
+use rodio::Sink;
 use rodio::{source::Source, Decoder, OutputStream};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufReader, Read, Cursor};
+use std::io::{BufReader, Cursor, Read};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -18,8 +19,10 @@ pub struct Profile {
 
 impl Profile {
     pub fn get() -> Self {
-#[derive(Deserialize)]
-struct ProfileRaw {gpio: HashMap<String, GpioConfig>}
+        #[derive(Deserialize)]
+        struct ProfileRaw {
+            gpio: HashMap<String, GpioConfig>,
+        }
 
         let path = format!(
             "profiles/{}",
@@ -32,14 +35,21 @@ struct ProfileRaw {gpio: HashMap<String, GpioConfig>}
             .read_to_string(&mut contents)
             .expect("profile should be valid utf8");
 
-        let mut raw = toml::from_str::<ProfileRaw>(&contents).expect("profile should be valid toml");
+        let mut raw =
+            toml::from_str::<ProfileRaw>(&contents).expect("profile should be valid toml");
 
-Self {gpio:
-        raw.gpio
-            .into_iter()
-            .map(|(k, v)| (u16::from_str_radix(&k, 10).expect("gpio keys must be integers"), v))
-            .collect()
-}
+        Self {
+            gpio: raw
+                .gpio
+                .into_iter()
+                .map(|(k, v)| {
+                    (
+                        u16::from_str_radix(&k, 10).expect("gpio keys must be integers"),
+                        v,
+                    )
+                })
+                .collect(),
+        }
     }
 }
 
@@ -50,29 +60,27 @@ fn main() {
     let (_stream, stream_handle) = OutputStream::try_default().expect("audio should be available");
 
     loop {
-        profile
-            .gpio
-            .iter()
-            .find_map(|(lane, config)| {
-                if gpio::sysfs::SysFsGpioInput::open(*lane)
-                    .expect("gpio lane should exist")
-                    .read_value()
-                    .expect("gpio lane should be input")
-                    == GpioValue::High
-                {
-                    log::info!("lane {} high", lane);
-                    Some(File::open(&config.sound).expect("sound should exist"))
-                } else {
-                    None
-                }
-            })
-            .map(|mut file| {
+        profile.gpio.iter().for_each(|(lane, config)| {
+            if gpio::sysfs::SysFsGpioInput::open(*lane)
+                .expect("gpio lane should exist")
+                .read_value()
+                .expect("gpio lane should be input")
+                == GpioValue::High
+            {
+                log::info!("lane {} high", lane);
+                let mut file = File::open(&config.sound).expect("sound file should exist");
                 let mut buf = vec![];
                 file.read_to_end(&mut buf).ok();
                 let buf = Cursor::new(buf);
-                let sink = stream_handle.play_once(buf).expect("sound should be valid");
+                let source = Decoder::new(buf).unwrap().buffered();
+                let sink = Sink::try_new(&stream_handle).expect("should be able to create sink");
+                sink.append(source);
+                // .play_once(buf).expect("sound should be valid");
                 sink.sleep_until_end();
-            });
+            } else {
+                ()
+            }
+        });
 
         sleep(Duration::from_millis(10));
     }
