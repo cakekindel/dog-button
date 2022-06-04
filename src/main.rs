@@ -44,6 +44,8 @@ Self {gpio:
 }
 
 fn main() {
+    simple_logger::init_with_level(log::Level::Info).unwrap();
+
     let profile = Profile::get();
     let (_stream, stream_handle) = OutputStream::try_default().expect("audio should be available");
 
@@ -58,6 +60,7 @@ fn main() {
                     .expect("gpio lane should be input")
                     == GpioValue::High
                 {
+                    log::info!("lane {} high", lane);
                     Some(File::open(&config.sound).expect("sound should exist"))
                 } else {
                     None
