@@ -66,7 +66,7 @@ fn main() {
             .map(|file| {
                 let sink = stream_handle.play_once(file).expect("sound should be valid");
                 sink.set_volume(0.15);
-                sink.detach();
+                sink.sleep_until_end();
             });
 
         sleep(Duration::from_millis(10));
