@@ -3,7 +3,7 @@ use rodio::{source::Source, Decoder, OutputStream};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Read, Cursor};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -66,9 +66,11 @@ fn main() {
                     None
                 }
             })
-            .map(|file| {
-                let sink = stream_handle.play_once(file).expect("sound should be valid");
-                sink.set_volume(0.15);
+            .map(|mut file| {
+                let mut buf = vec![];
+                file.read_to_end(&mut buf).ok();
+                let buf = Cursor::new(buf);
+                let sink = stream_handle.play_once(buf).expect("sound should be valid");
                 sink.sleep_until_end();
             });
 
