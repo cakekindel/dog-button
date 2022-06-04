@@ -1,6 +1,22 @@
-use kwap::{blocking::server::Server, platform::Std};
+use kwap::blocking::server::Server;
+use rodio::OutputStream;
+use std::{
+    fs::File,
+    io::BufReader,
+    thread::sleep,
+    time::Duration,
+};
+
+fn scream() {
+    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+    let file = BufReader::new(File::open("screm.wav").unwrap());
+    let sink = stream_handle.play_once(file).unwrap();
+    sink.set_volume(0.15);
+    sleep(Duration::from_millis(1000));
+}
 
 mod service {
+    use super::*;
     use kwap::{
         blocking::server::{
             Action::{Continue, SendReq, SendResp},
@@ -11,27 +27,32 @@ mod service {
         req::{Method, Req},
         resp::{code, Resp},
     };
-    use rodio::OutputStream;
     use std::{
-        fs::File,
-        io::BufReader,
-        time::{Duration, Instant}, thread::sleep,
+        thread::sleep,
+        time::{Duration, Instant},
     };
 
-    static mut LAST_BROADCAST: Option<Instant> = None;
+    mod broadcast {
+      use super::*;
+
+      static mut LAST_BROADCAST: Option<Instant> = None;
+
+      pub(super) fn last() -> Option<Instant> {
+        unsafe {LAST_BROADCAST}
+      }
+
+      pub(super) fn set_now() {
+        unsafe {LAST_BROADCAST = Some(Instant::now());}
+      }
+    }
 
     pub fn post_pressed(req: &Addrd<Req<Std>>) -> Actions<Std> {
         match (
             req.data().method(),
             req.data().path().unwrap().unwrap_or_default(),
         ) {
-            (Method::GET, "pressed") => {
-                let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-
-                let file = BufReader::new(File::open("screm.wav").unwrap());
-                let sink = stream_handle.play_once(file).unwrap();
-                sink.set_volume(0.15);
-                sleep(Duration::from_millis(1000));
+            (Method::POST, "pressed") => {
+                scream();
 
                 let resp =
                     req.as_ref()
@@ -51,8 +72,9 @@ mod service {
     }
 
     pub fn send_multicast_broadcast() -> Actions<Std> {
-        match unsafe { LAST_BROADCAST } {
+        match broadcast::last() {
             Some(inst) if inst > (Instant::now() - Duration::from_millis(1000)) => {
+                sleep(Duration::from_millis(10));
                 Actions::just(Continue)
             }
             _ => {
@@ -61,9 +83,7 @@ mod service {
                 let mut req = Req::<Std>::post(addr, "");
                 req.non();
 
-                unsafe {
-                    LAST_BROADCAST = Some(Instant::now());
-                }
+                broadcast::set_now();
 
                 SendReq(Addrd(req, addr)).then(Continue)
             }
@@ -73,9 +93,9 @@ mod service {
 
 fn main() {
     simple_logger::init_with_level(log::Level::Trace).unwrap();
-    let mut server = kwap::blocking::Server::try_new([0, 0, 0, 0], 1111).unwrap();
+    let mut server = Server::try_new([0, 0, 0, 0], 1111).unwrap();
 
     server.middleware(&service::post_pressed);
 
-    server.start_tick(Some(&service::send_multicast_broadcast));
+    server.start_tick(Some(&service::send_multicast_broadcast)).unwrap();
 }
