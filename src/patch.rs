@@ -104,7 +104,7 @@ impl Patch {
 
         let raw = toml::from_str::<PatchRaw>(&contents).expect("patch should be valid toml");
 
-        let loaded: Barrier = Barrier::new(raw.gpio.len() + 1);
+        let loaded: Barrier = Barrier::new(raw.gpio.len() + 2);
 
         let me = Self {
             sounds: raw
