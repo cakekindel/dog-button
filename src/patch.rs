@@ -60,7 +60,7 @@ impl Sound {
         log::info!("playing {}", self.sound);
         let sink = Sink::try_new(stream_handle).expect("should be able to create sink");
         sink.append(self.sound_source.clone());
-        sink.set_volume(2.0);
+        sink.set_volume(4.0);
         sink.sleep_until_end();
         log::info!("played {}", self.sound);
     }
