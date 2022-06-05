@@ -1,12 +1,23 @@
 use gpio::{GpioIn, GpioValue};
+use rodio::source::Buffered;
 use rodio::Sink;
 use rodio::{source::Source, Decoder, OutputStream};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufReader, Cursor, Read};
+use std::io::{Cursor, Read};
 use std::thread::sleep;
 use std::time::Duration;
+
+fn read_sound(path: &str) -> Buffered<Decoder<Cursor<Vec<u8>>>> {
+    let mut file = File::open(path).expect("sound file should exist");
+    let mut buf = vec![];
+    file.read_to_end(&mut buf).ok();
+    let buf = Cursor::new(buf);
+    let source = Decoder::new(buf).unwrap().buffered();
+    source.clone().count();
+    source
+}
 
 #[derive(Deserialize)]
 pub struct GpioConfig {
@@ -35,7 +46,7 @@ impl Profile {
             .read_to_string(&mut contents)
             .expect("profile should be valid utf8");
 
-        let mut raw =
+        let raw =
             toml::from_str::<ProfileRaw>(&contents).expect("profile should be valid toml");
 
         Self {
@@ -68,15 +79,11 @@ fn main() {
                 == GpioValue::High
             {
                 log::info!("lane {} high", lane);
-                let mut file = File::open(&config.sound).expect("sound file should exist");
-                let mut buf = vec![];
-                file.read_to_end(&mut buf).ok();
-                let buf = Cursor::new(buf);
-                let source = Decoder::new(buf).unwrap().buffered();
-                source.clone().count();
+
+                let sound = read_sound(&config.sound);
+
                 let sink = Sink::try_new(&stream_handle).expect("should be able to create sink");
-                sink.append(source);
-                // .play_once(buf).expect("sound should be valid");
+                sink.append(sound);
                 sink.sleep_until_end();
             } else {
                 ()
