@@ -31,12 +31,23 @@ pub struct Sound {
 
 impl Sound {
     fn buffer(path: &str) -> Self {
+        log::info!("loading sound {}", path);
+
         let mut file = File::open(path).expect("sound file should exist");
         let mut buf = vec![];
         file.read_to_end(&mut buf).ok();
         let buf = Cursor::new(buf);
         let source = Decoder::new(buf).unwrap().buffered();
-        source.clone().for_each(|_| ());
+
+        // This count() does more than just count the number
+        // of decoded bytes.
+        //
+        // Iterating until the buffered source is exhausted will cache
+        // the entire decoded sample in memory for clones, preventing
+        // stuttering when attempting to decode on the fly
+        let n = source.clone().count();
+
+        log::info!("buffered {}b", n);
 
         Self {
             sound: path.to_string(),
@@ -45,6 +56,7 @@ impl Sound {
     }
 
     pub fn play(&self, stream_handle: &OutputStreamHandle) {
+        log::info!("playing {}", self.sound);
         let sink = Sink::try_new(stream_handle).expect("should be able to create sink");
         sink.append(self.sound_source.clone());
         sink.sleep_until_end();
@@ -67,6 +79,7 @@ impl Patch {
             "patches/{}.toml",
             std::env::var("DOG_BTN_PATCH").unwrap_or_else(|_| String::from("default"))
         );
+        log::info!("loading patch {}", path);
 
         let mut contents = String::new();
         File::open(path)
