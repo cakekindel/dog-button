@@ -11,7 +11,8 @@ use std::time::Duration;
 mod patch;
 
 fn main() {
-    simple_logger::init_with_level(log::Level::Info).unwrap();
+    std::env::set_var("RUST_LOG", "dog_button=info,symphonia_core=error,symphonia_bundle_mp3=error");
+    simple_logger::init_with_env().unwrap();
 
     let profile = patch::Patch::get();
     let (_stream, stream_handle) = OutputStream::try_default().expect("audio should be available");
