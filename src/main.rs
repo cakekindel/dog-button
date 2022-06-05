@@ -73,6 +73,7 @@ fn main() {
                 file.read_to_end(&mut buf).ok();
                 let buf = Cursor::new(buf);
                 let source = Decoder::new(buf).unwrap().buffered();
+                source.clone().count();
                 let sink = Sink::try_new(&stream_handle).expect("should be able to create sink");
                 sink.append(source);
                 // .play_once(buf).expect("sound should be valid");
