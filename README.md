@@ -5,8 +5,8 @@ dog button
 ### Code
 ```sh
 > mkdir sounds
-> mkdir profiles
-> cp profile_example.toml profiles/default.toml
+> mkdir patches
+> cp patch_example.toml patches/default.toml
 > cp hungry.ogg sounds
 > cargo run
 ```
