@@ -37,7 +37,7 @@ impl Profile {
 
         let path = format!(
             "profiles/{}",
-            std::env::var("DOG_BTN_PROFILE").unwrap_or(String::from("default.toml"))
+            std::env::var("DOG_BTN_PROFILE").unwrap_or_else(|_| String::from("default.toml"))
         );
 
         let mut contents = String::new();
@@ -55,7 +55,7 @@ impl Profile {
                 .into_iter()
                 .map(|(k, v)| {
                     (
-                        u16::from_str_radix(&k, 10).expect("gpio keys must be integers"),
+                        k.parse::<u16>().expect("gpio keys must be integers"),
                         v,
                     )
                 })
@@ -85,8 +85,6 @@ fn main() {
                 let sink = Sink::try_new(&stream_handle).expect("should be able to create sink");
                 sink.append(sound);
                 sink.sleep_until_end();
-            } else {
-                ()
             }
         });
 
