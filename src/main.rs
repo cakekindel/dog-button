@@ -40,6 +40,7 @@ fn main() {
         profile.sounds.iter().for_each(|(key, sound)| {
             if let SoundKey::Gpio(lane) = key {
                 if gpio_is_hi(lane) && !gpio_was_hi.get(lane).copied().unwrap_or_default() {
+                    gpio_was_hi.insert(*lane, true);
                     log::info!("lane {} high", lane);
                     sound.play(&stream_handle);
                 } else {
