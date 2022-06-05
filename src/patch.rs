@@ -46,8 +46,9 @@ impl Sound {
         // the entire decoded sample in memory for clones, preventing
         // stuttering when attempting to decode on the fly
         let n = source.clone().count();
+        log::info!("buffered {}kb", n / 1000);
 
-        log::info!("buffered {}b", n);
+        log::info!("loaded sound {}", path);
 
         Self {
             sound: path.to_string(),
