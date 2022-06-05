@@ -3,7 +3,8 @@ use std::{
     fs::File,
     io::{Cursor, Read},
     iter::once,
-    thread, sync::Barrier,
+    sync::Barrier,
+    thread,
 };
 
 use rodio::{source::Buffered, Decoder, OutputStreamHandle, Sink, Source};
@@ -25,7 +26,7 @@ pub struct Sound {
 }
 
 impl Sound {
-    fn buffer(path: &str, loaded: &Barrier) -> Self {
+    fn buffer(path: &str) -> Self {
         log::info!("loading sound {}", path);
 
         let mut file = File::open(path).expect("sound file should exist");
@@ -33,28 +34,16 @@ impl Sound {
         file.read_to_end(&mut buf).ok();
         let buf = Cursor::new(buf);
         let source = Decoder::new(buf).unwrap().buffered();
-        let source_clone = source.clone();
-        let path_string = path.to_string();
 
-        // UNSAFETY:
-        //   This is safe because the reference is issued by Patch::get()
-        //   which /also/ waits on this barrier before returning and dropping the barrier
-        //   and invalidating all references to it.
-        let loaded = unsafe {std::mem::transmute::<_, &'static Barrier>(loaded)};
-
-        thread::spawn(move || {
-            // This count() does more than just count the number
-            // of decoded bytes.
-            //
-            // Iterating until the buffered source is exhausted will cache
-            // the entire decoded sample in memory for clones, preventing
-            // stuttering when attempting to decode on the fly
-            let n = source_clone.count();
-            log::info!("buffered {}kb", n / 1000);
-            log::info!("loaded sound {}", path_string);
-
-            loaded.wait();
-        });
+        // This count() does more than just count the number
+        // of decoded bytes.
+        //
+        // Iterating until the buffered source is exhausted will cache
+        // the entire decoded sample in memory for clones, preventing
+        // stuttering when attempting to decode on the fly
+        let n = source.clone().count();
+        log::info!("buffered {}kb", n / 1000);
+        log::info!("loaded sound {}", path);
 
         Self {
             sound: path.to_string(),
@@ -104,9 +93,6 @@ impl Patch {
 
         let raw = toml::from_str::<PatchRaw>(&contents).expect("patch should be valid toml");
 
-        let loaded: Barrier = Barrier::new(raw.gpio.len() + 2);
-        let loaded_ref = &loaded;
-
         let me = Self {
             sounds: raw
                 .gpio
@@ -114,14 +100,12 @@ impl Patch {
                 .map(|(k, v)| {
                     (
                         SoundKey::Gpio(k.parse::<u16>().expect("gpio lanes must be integers")),
-                        Sound::buffer(&v.sound, loaded_ref),
+                        Sound::buffer(&v.sound),
                     )
                 })
-                .chain(once((SoundKey::PowerOn, Sound::buffer("startup.wav", &loaded))))
+                .chain(once((SoundKey::PowerOn, Sound::buffer("startup.wav"))))
                 .collect(),
         };
-
-        loaded.wait();
 
         me
     }
