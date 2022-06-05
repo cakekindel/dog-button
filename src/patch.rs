@@ -3,7 +3,6 @@ use std::{
     fs::File,
     io::{Cursor, Read},
     iter::once,
-    sync::Barrier,
     thread,
 };
 
