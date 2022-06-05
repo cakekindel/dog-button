@@ -6,7 +6,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Cursor, Read};
-use std::thread::{sleep, self};
+use std::thread::sleep;
 use std::time::Duration;
 
 fn read_sound(path: &str) -> Buffered<Decoder<Cursor<Vec<u8>>>> {
@@ -15,17 +15,13 @@ fn read_sound(path: &str) -> Buffered<Decoder<Cursor<Vec<u8>>>> {
     file.read_to_end(&mut buf).ok();
     let buf = Cursor::new(buf);
     let source = Decoder::new(buf).unwrap().buffered();
-    let source_clone = source.clone();
-
-    // Hardware sux. buffer for 100ms before handing the source over to the sink
-    thread::spawn(move || source_clone.for_each(|_| ()));
-    thread::sleep(Duration::from_millis(100));
+    source.clone().for_each(|_| ());
     source
 }
 
-#[derive(Deserialize)]
 pub struct GpioConfig {
     pub sound: String,
+    pub sound_source: Buffered<Decoder<Cursor<Vec<u8>>>>,
 }
 
 pub struct Profile {
@@ -35,8 +31,10 @@ pub struct Profile {
 impl Profile {
     pub fn get() -> Self {
         #[derive(Deserialize)]
+        struct GpioConfigRaw {sound: String}
+        #[derive(Deserialize)]
         struct ProfileRaw {
-            gpio: HashMap<String, GpioConfig>,
+            gpio: HashMap<String, GpioConfigRaw>,
         }
 
         let path = format!(
@@ -60,7 +58,10 @@ impl Profile {
                 .map(|(k, v)| {
                     (
                         k.parse::<u16>().expect("gpio keys must be integers"),
-                        v,
+                        GpioConfig {
+                            sound_source: read_sound(&v.sound),
+                            sound: v.sound,
+                        },
                     )
                 })
                 .collect(),
@@ -84,10 +85,8 @@ fn main() {
             {
                 log::info!("lane {} high", lane);
 
-                let sound = read_sound(&config.sound);
-
                 let sink = Sink::try_new(&stream_handle).expect("should be able to create sink");
-                sink.append(sound);
+                sink.append(config.sound_source.clone());
                 sink.sleep_until_end();
             }
         });
