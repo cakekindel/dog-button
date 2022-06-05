@@ -11,7 +11,10 @@ use std::time::Duration;
 mod patch;
 
 fn main() {
-    std::env::set_var("RUST_LOG", "dog_button=info,symphonia_core=error,symphonia_bundle_mp3=error");
+    std::env::set_var(
+        "RUST_LOG",
+        "dog_button=info,symphonia_core=error,symphonia_bundle_mp3=error",
+    );
     env_logger::init();
 
     let profile = patch::Patch::get();
