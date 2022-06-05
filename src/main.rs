@@ -12,7 +12,7 @@ mod patch;
 
 fn main() {
     std::env::set_var("RUST_LOG", "dog_button=info,symphonia_core=error,symphonia_bundle_mp3=error");
-    simple_logger::init_with_env().unwrap();
+    env_logger::init();
 
     let profile = patch::Patch::get();
     let (_stream, stream_handle) = OutputStream::try_default().expect("audio should be available");
