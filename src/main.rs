@@ -43,7 +43,7 @@ fn main() {
                     gpio_was_hi.insert(*lane, true);
                     log::info!("lane {} high", lane);
                     sound.play(&stream_handle);
-                } else {
+                } else if !gpio_is_hi(lane) {
                     gpio_was_hi.insert(*lane, false);
                 }
             }
