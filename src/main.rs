@@ -6,7 +6,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Cursor, Read};
-use std::thread::sleep;
+use std::thread::{sleep, self};
 use std::time::Duration;
 
 fn read_sound(path: &str) -> Buffered<Decoder<Cursor<Vec<u8>>>> {
@@ -15,7 +15,11 @@ fn read_sound(path: &str) -> Buffered<Decoder<Cursor<Vec<u8>>>> {
     file.read_to_end(&mut buf).ok();
     let buf = Cursor::new(buf);
     let source = Decoder::new(buf).unwrap().buffered();
-    source.clone().count();
+    let source_clone = source.clone();
+
+    // Hardware sux. buffer for 100ms before handing the source over to the sink
+    thread::spawn(move || source_clone.for_each(|_| ()));
+    thread::sleep(Duration::from_millis(100));
     source
 }
 
