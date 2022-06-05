@@ -104,7 +104,8 @@ impl Patch {
 
         let raw = toml::from_str::<PatchRaw>(&contents).expect("patch should be valid toml");
 
-        let loaded: Barrier = Barrier::new(raw.gpio.len() + 3);
+        let loaded: Barrier = Barrier::new(raw.gpio.len() + 2);
+        let loaded_ref = &loaded;
 
         let me = Self {
             sounds: raw
@@ -113,7 +114,7 @@ impl Patch {
                 .map(|(k, v)| {
                     (
                         SoundKey::Gpio(k.parse::<u16>().expect("gpio lanes must be integers")),
-                        Sound::buffer(&v.sound, &loaded),
+                        Sound::buffer(&v.sound, loaded_ref),
                     )
                 })
                 .chain(once((SoundKey::PowerOn, Sound::buffer("startup.wav", &loaded))))
