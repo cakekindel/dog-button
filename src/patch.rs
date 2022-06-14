@@ -59,7 +59,7 @@ impl Sound {
         thread::spawn(move || {
             let sink = Sink::try_new(&stream_handle).expect("should be able to create sink");
             sink.append(source);
-            sink.set_volume(4.0);
+            sink.set_volume(8.0);
             sink.sleep_until_end();
             log::info!("played {}", sound);
         });
