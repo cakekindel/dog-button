@@ -44,7 +44,6 @@ fn main() {
                     log::info!("lane {} low", lane);
                     sound.play(&stream_handle);
                 } else if !gpio_is_lo(lane) {
-                    log::info!("lane {} high", lane);
                     gpio_was_lo.insert(*lane, false);
                 }
             }
