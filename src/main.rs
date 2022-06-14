@@ -11,12 +11,12 @@ use std::time::Duration;
 
 mod patch;
 
-fn gpio_is_hi(lane: &u16) -> bool {
+fn gpio_is_lo(lane: &u16) -> bool {
     gpio::sysfs::SysFsGpioInput::open(*lane)
         .unwrap_or_else(|_| panic!("gpio lane {} should exist", lane))
         .read_value()
         .unwrap_or_else(|_| panic!("gpio lane {} should be an input", lane))
-        == GpioValue::High
+        == GpioValue::Low
 }
 
 fn main() {
@@ -26,7 +26,7 @@ fn main() {
     );
     env_logger::init();
 
-    let mut gpio_was_hi = HashMap::<u16, bool>::new();
+    let mut gpio_was_lo = HashMap::<u16, bool>::new();
 
     let profile = patch::Patch::get();
     let (_stream, stream_handle) = OutputStream::try_default().expect("audio should be available");
@@ -39,12 +39,13 @@ fn main() {
     loop {
         profile.sounds.iter().for_each(|(key, sound)| {
             if let SoundKey::Gpio(lane) = key {
-                if gpio_is_hi(lane) && !gpio_was_hi.get(lane).copied().unwrap_or_default() {
-                    gpio_was_hi.insert(*lane, true);
-                    log::info!("lane {} high", lane);
+                if gpio_is_lo(lane) && !gpio_was_lo.get(lane).copied().unwrap_or_default() {
+                    gpio_was_lo.insert(*lane, true);
+                    log::info!("lane {} low", lane);
                     sound.play(&stream_handle);
-                } else if !gpio_is_hi(lane) {
-                    gpio_was_hi.insert(*lane, false);
+                } else if !gpio_is_lo(lane) {
+                    log::info!("lane {} high", lane);
+                    gpio_was_lo.insert(*lane, false);
                 }
             }
         });
